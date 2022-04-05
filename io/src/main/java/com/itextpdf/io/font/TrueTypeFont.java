@@ -51,24 +51,17 @@ import com.itextpdf.io.font.otf.GlyphPositioningTableReader;
 import com.itextpdf.io.font.otf.GlyphSubstitutionTableReader;
 import com.itextpdf.io.font.otf.OpenTypeGdefTableReader;
 import com.itextpdf.io.util.IntHashtable;
+import com.itextpdf.io.util.MessageFormatUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.itextpdf.io.util.MessageFormatUtil;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.SortedSet;
+import java.util.*;
 
 public class TrueTypeFont extends FontProgram {
 
     private static final long serialVersionUID = -2232044646577669268L;
 
-	private OpenTypeParser fontParser;
+    private OpenTypeParser fontParser;
 
     protected int[][] bBoxes;
 
@@ -92,11 +85,67 @@ public class TrueTypeFont extends FontProgram {
     private TrueTypeFont(OpenTypeParser fontParser) throws java.io.IOException {
         this.fontParser = fontParser;
         this.fontParser.loadTables(true);
-        initializeFontProperties();
+        if (!this.fontParser.isCut()) {
+            initializeFontProperties();
+        } else {
+            fontNames = fontParser.getFontNames();
+            fontNames.setAllowEmbedding(true);
+            CFFFont font = fontParser.getCffFont();
+            if (font.fonts != null && font.fonts.length > 0) {
+                Map<Integer, Integer> glyphMap;
+                if (font.fonts[0].isCID) {
+                    glyphMap = font.fonts[0].charset.gidToCid;
+                } else {
+                    glyphMap = font.fonts[0].charset.gidToSid;
+                }
+                List<Integer> values = new LinkedList<>(glyphMap.values());
+                Collections.sort(values);
+                int numOfGlyphs = values.get(values.size() - 1) + 1;
+                int cmapSize = glyphMap.size();
+                unicodeToGlyph = new LinkedHashMap<>(cmapSize);
+                codeToGlyph = new LinkedHashMap<>(numOfGlyphs);
+                avgWidth = 0;
+
+                fontMetrics.setNumberOfGlyphs(numOfGlyphs);
+
+                for (int charCode : glyphMap.keySet()) {
+                    int index = glyphMap.get(charCode);
+                    if (index >= numOfGlyphs) {
+                        Logger LOGGER = LoggerFactory.getLogger(TrueTypeFont.class);
+                        LOGGER.warn(MessageFormatUtil.format(LogMessageConstant.FONT_HAS_INVALID_GLYPH, getFontNames().getFontName(), index));
+                        continue;
+                    }
+
+                    // This is done on purpose to keep the mapping to glyphs with smaller unicode values, in contrast with
+                    // larger values which often represent different forms of other characters.
+                    if (font.fonts[0].isCID) {
+                        Glyph glyph = new Glyph(index, FontProgram.DEFAULT_WIDTH, charCode, null);
+                        unicodeToGlyph.put(charCode, glyph);
+                        if (!codeToGlyph.containsKey(index)) {
+                            codeToGlyph.put(index, glyph);
+                        }
+                        avgWidth += glyph.getWidth();
+                    }
+                    else{
+                        Glyph glyph = new Glyph(charCode, FontProgram.DEFAULT_WIDTH, charCode, null);
+                        unicodeToGlyph.put(charCode, glyph);
+                        if (!codeToGlyph.containsKey(charCode)) {
+                            codeToGlyph.put(charCode, glyph);
+                        }
+                        avgWidth += glyph.getWidth();
+                    }
+                }
+            }
+            fixSpaceIssue();
+        }
     }
 
     protected TrueTypeFont() {
         fontNames = new FontNames();
+    }
+
+    public static void main(String[] args) throws java.io.IOException {
+        new TrueTypeFont("D:\\develop\\ofdrw\\ofdrw-converter\\src\\test\\resources\\intro-数科\\Doc_0\\Res\\font_85_85.ttf");
     }
 
     public TrueTypeFont(String path) throws java.io.IOException {
@@ -105,6 +154,10 @@ public class TrueTypeFont extends FontProgram {
 
     public TrueTypeFont(byte[] ttf) throws java.io.IOException {
         this(new OpenTypeParser(ttf));
+    }
+
+    public TrueTypeFont(byte[] ttf, String fontName) throws java.io.IOException {
+        this(new OpenTypeParser(ttf, fontName));
     }
 
     TrueTypeFont(String ttcPath, int ttcIndex) throws java.io.IOException {
@@ -123,7 +176,7 @@ public class TrueTypeFont extends FontProgram {
     /**
      * Gets the kerning between two glyphs.
      *
-     * @param first the first glyph
+     * @param first  the first glyph
      * @param second the second glyph
      * @return the kerning to be applied
      */
@@ -141,7 +194,9 @@ public class TrueTypeFont extends FontProgram {
 
     public Map<Integer, int[]> getActiveCmap() {
         OpenTypeParser.CmapTable cmaps = fontParser.getCmapTable();
-        if (cmaps.cmapExt != null) {
+        if (cmaps.cmapUnkown != null) {
+            return cmaps.cmapUnkown;
+        } else if (cmaps.cmapExt != null) {
             return cmaps.cmapExt;
         } else if (!cmaps.fontSpecific && cmaps.cmap31 != null) {
             return cmaps.cmap31;
@@ -234,7 +289,7 @@ public class TrueTypeFont extends FontProgram {
     protected void readGposTable() throws java.io.IOException {
         int[] gpos = fontParser.tables.get("GPOS");
         if (gpos != null) {
-            gposTable = new GlyphPositioningTableReader(fontParser.raf, gpos[0], gdefTable, codeToGlyph,  fontMetrics.getUnitsPerEm());
+            gposTable = new GlyphPositioningTableReader(fontParser.raf, gpos[0], gdefTable, codeToGlyph, fontMetrics.getUnitsPerEm());
         }
     }
 
@@ -294,6 +349,9 @@ public class TrueTypeFont extends FontProgram {
         fontIdentification.setPanose(pdfPanose);
 
         Map<Integer, int[]> cmap = getActiveCmap();
+        if (cmap == null) {
+            cmap = new HashMap<>();
+        }
         int[] glyphWidths = fontParser.getGlyphWidthsByIndex();
         int numOfGlyphs = fontMetrics.getNumberOfGlyphs();
         unicodeToGlyph = new LinkedHashMap<>(cmap.size());
@@ -377,9 +435,9 @@ public class TrueTypeFont extends FontProgram {
      * The method will update usedGlyphs with additional range or with all glyphs if there is no subset.
      * This set of used glyphs can be used for building width array and ToUnicode CMAP.
      *
-     * @param usedGlyphs a set of integers, which are glyph ids that denote used glyphs.
-     *                   This set is updated inside of the method if needed.
-     * @param subset subset status
+     * @param usedGlyphs   a set of integers, which are glyph ids that denote used glyphs.
+     *                     This set is updated inside of the method if needed.
+     * @param subset       subset status
      * @param subsetRanges additional subset ranges
      */
     public void updateUsedGlyphs(SortedSet<Integer> usedGlyphs, boolean subset, List<int[]> subsetRanges) {
@@ -387,9 +445,9 @@ public class TrueTypeFont extends FontProgram {
         if (subsetRanges != null) {
             compactRange = toCompactRange(subsetRanges);
         } else if (!subset) {
-            compactRange = new int[] {0, 0xFFFF};
+            compactRange = new int[]{0, 0xFFFF};
         } else {
-            compactRange = new int[] {};
+            compactRange = new int[]{};
         }
 
         for (int k = 0; k < compactRange.length; k += 2) {
@@ -406,6 +464,7 @@ public class TrueTypeFont extends FontProgram {
     /**
      * Normalizes given ranges by making sure that first values in pairs are lower than second values and merges overlapping
      * ranges in one.
+     *
      * @param ranges a {@link List} of integer arrays, which are constituted by pairs of ints that denote
      *               each range limits. Each integer array size shall be a multiple of two.
      * @return single merged array consisting of pairs of integers, each of them denoting a range.
@@ -436,5 +495,9 @@ public class TrueTypeFont extends FontProgram {
             s[k * 2 + 1] = r[1];
         }
         return s;
+    }
+
+    public boolean isNotCutCff(){
+        return fontParser.isCff() && !fontParser.isCut();
     }
 }

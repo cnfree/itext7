@@ -47,7 +47,14 @@ import com.itextpdf.io.IOException;
 import com.itextpdf.io.source.RandomAccessFileOrArray;
 import com.itextpdf.io.source.RandomAccessSourceFactory;
 
+import java.io.EOFException;
+import java.io.File;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 public class CFFFont {
 
@@ -979,6 +986,8 @@ public class CFFFont {
     protected int[] topdictOffsets;
     protected int[] stringOffsets;
     protected int[] gsubrOffsets;
+    private String[] stringIndex = null;
+    private byte[] cff;
 
     protected final class Font {
         public String    name;
@@ -1005,7 +1014,7 @@ public class CFFFont {
         public int nstrings;
         public int CharsetLength;
         public int[]    charstringsOffsets;
-        public int[]    charset;
+        public CFFCharset charset;
         public int[] 	FDSelect;
         public int FDSelectLength;
         public int FDSelectFormat;
@@ -1022,7 +1031,16 @@ public class CFFFont {
 
     RandomAccessSourceFactory rasFactory = new RandomAccessSourceFactory();
 
+    public static void main(String[] args) throws java.io.IOException {
+        TrueTypeFont font1 = new TrueTypeFont(Files.readAllBytes(new File("D:\\develop\\ofdrw\\ofdrw-converter\\src\\test\\resources\\intro-数科\\Doc_0\\Res\\font_764_764.otf").toPath()));
+        font1.getFontStreamBytes();
+        font1.toString();
+        CFFFont font = new CFFFont(Files.readAllBytes(new File("D:\\develop\\ofdrw\\ofdrw-converter\\src\\test\\resources\\intro-数科\\Doc_0\\Res\\font_764_764.otf").toPath()));
+        System.out.println(font);
+    }
+
     public CFFFont(byte[] cff) {
+        this.cff = cff;
         //System.err.println("CFF: nStdString = "+standardStrings.length);
         buf = new RandomAccessFileOrArray(rasFactory.createSource(cff));
         seek(0);
@@ -1166,8 +1184,362 @@ public class CFFFont {
                     }
                 }
             }
+
+            stringIndex = readStringIndexData();
+            if (fonts[j].charsetOffset > 0) {
+                int charsetId = fonts[j].charsetOffset;
+                if (!fonts[j].isCID && charsetId == 0) {
+
+                } else if (!fonts[j].isCID && charsetId == 1) {
+
+                } else if (!fonts[j].isCID && charsetId == 2) {
+
+                } else {
+                    seek(charsetId);
+                    fonts[j].charset = this.readCharset(fonts[j].charstringsOffsets.length-1, fonts[j].isCID);
+                }
+            }
         }
         //System.err.println("CFF: done");
+    }
+
+    private CFFCharset readCharset(int nGlyphs, boolean isCIDFont) {
+        int format = getCard8();
+        switch(format) {
+            case 0:
+                return this.readFormat0Charset(format, nGlyphs, isCIDFont);
+            case 1:
+                return this.readFormat1Charset(format, nGlyphs, isCIDFont);
+            case 2:
+                return this.readFormat2Charset(format, nGlyphs, isCIDFont);
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
+
+//    private String readString(int index) {
+//        if (index >= 0 && index <= 390) {
+//            return CFFStandardString.getName(index);
+//        } else {
+//            return index - 391 < this.stringIndex.length ? this.stringIndex[index - 391] : "SID" + index;
+//        }
+//    }
+
+
+    public int readUnsignedByte() throws java.io.IOException {
+        int b = buf.read();
+        if (b < 0) {
+            throw new EOFException();
+        } else {
+            return b;
+        }
+    }
+
+    public int readOffSize() throws java.io.IOException {
+        int offSize =  readUnsignedByte();
+        if (offSize >= 1 && offSize <= 4) {
+            return offSize;
+        } else {
+            throw new java.io.IOException("Illegal (< 1 or > 4) offSize value " + offSize + " in CFF font at position " + (this.getPosition() - 1));
+        }
+    }
+
+    public int readOffset(int offSize) throws java.io.IOException {
+        int value = 0;
+
+        for(int i = 0; i < offSize; ++i) {
+            value = value << 8 | this.readUnsignedByte();
+        }
+
+        return value;
+    }
+
+    private int[] readIndexDataOffsets() throws java.io.IOException {
+        int count = getCard16();
+        if (count == 0) {
+            return null;
+        } else {
+            int offSize = readOffSize();
+            int[] offsets = new int[count + 1];
+
+            for(int i = 0; i <= count; ++i) {
+                int offset = readOffset(offSize);
+                if (offset > buf.length()) {
+                    throw new java.io.IOException("illegal offset value " + offset + " in CFF font");
+                }
+
+                offsets[i] = offset;
+            }
+
+            return offsets;
+        }
+    }
+
+    public byte[] readBytes(int length) throws java.io.IOException {
+        if (length < 0) {
+            throw new java.io.IOException("length is negative");
+        } else if (buf.length() - buf.getPosition() < length) {
+            throw new EOFException();
+        } else {
+            byte[] bytes = new byte[length];
+            System.arraycopy(this.cff, (int)buf.getPosition(), bytes, 0, length);
+            this.seek(length);
+            return bytes;
+        }
+    }
+
+    private String[] readStringIndexData() {
+        try {
+            seek(stringIndexOffset);
+            int[] offsets = readIndexDataOffsets();
+            if (offsets == null) {
+                return null;
+            } else {
+                int count = offsets.length - 1;
+                String[] indexDataValues = new String[count];
+
+                for (int i = 0; i < count; ++i) {
+                    int length = offsets[i + 1] - offsets[i];
+                    if (length < 0) {
+                        throw new java.io.IOException("Negative index data length + " + length + " at " + i + ": offsets[" + (i + 1) + "]=" + offsets[i + 1] + ", offsets[" + i + "]=" + offsets[i]);
+                    }
+
+                    indexDataValues[i] = new String(readBytes(length), Charset.forName("ISO-8859-1"));
+                }
+
+                return indexDataValues;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private String readString(int index) {
+        if (index >= 0 && index <= 390) {
+            return standardStrings[index];
+        } else {
+            return index - 391 < this.stringIndex.length ? this.stringIndex[index - 391] : "SID" + index;
+        }
+    }
+
+    private Format0Charset readFormat0Charset(int format, int nGlyphs, boolean isCIDFont)  {
+        Format0Charset charset = new Format0Charset(isCIDFont);
+        charset.format = format;
+        if (isCIDFont) {
+            charset.addCID(0, 0);
+        } else {
+            charset.addSID(0, 0, ".notdef");
+        }
+
+        for(int gid = 1; gid < nGlyphs; ++gid) {
+            int sid = readSID();
+            if (isCIDFont) {
+                charset.addCID(gid, sid);
+            } else {
+                charset.addSID(gid, sid, readString(sid));
+            }
+        }
+
+        return charset;
+    }
+
+    public int readSID(){
+        return getShort();
+    }
+
+    private Format1Charset readFormat1Charset(int format, int nGlyphs, boolean isCIDFont)  {
+        Format1Charset charset = new Format1Charset(isCIDFont);
+        charset.format = format;
+        if (isCIDFont) {
+            charset.addCID(0, 0);
+            charset.rangesCID2GID = new ArrayList();
+        } else {
+            charset.addSID(0, 0, ".notdef");
+        }
+
+        for(int gid = 1; gid < nGlyphs; ++gid) {
+            int rangeFirst = readSID();
+            int rangeLeft = getCard8();
+            if (!isCIDFont) {
+                for(int j = 0; j < 1 + rangeLeft; ++j) {
+                    int sid = rangeFirst + j;
+                    charset.addSID(gid + j, sid, readString(sid));
+                }
+            } else {
+                charset.rangesCID2GID.add(new RangeMapping(gid, rangeFirst, rangeLeft));
+            }
+
+            gid += rangeLeft;
+        }
+
+        return charset;
+    }
+
+    private Format2Charset readFormat2Charset(int format, int nGlyphs, boolean isCIDFont)  {
+        Format2Charset charset = new Format2Charset(isCIDFont);
+        charset.format = format;
+        if (isCIDFont) {
+            charset.addCID(0, 0);
+            charset.rangesCID2GID = new ArrayList();
+        } else {
+            charset.addSID(0, 0, ".notdef");
+        }
+
+        for(int gid = 1; gid < nGlyphs; ++gid) {
+            int first = readSID();
+            int nLeft = getCard16();
+            if (!isCIDFont) {
+                for(int j = 0; j < 1 + nLeft; ++j) {
+                    int sid = first + j;
+                    charset.addSID(gid + j, sid, readString(sid));
+                }
+            } else {
+                charset.rangesCID2GID.add(new RangeMapping(gid, first, nLeft));
+            }
+
+            gid += nLeft;
+        }
+
+        return charset;
+    }
+
+    abstract static class EmbeddedCharset extends CFFCharset {
+        protected EmbeddedCharset(boolean isCIDFont) {
+            super(isCIDFont);
+        }
+    }
+
+    private static final class RangeMapping {
+        private final int startValue;
+        private final int endValue;
+        private final int startMappedValue;
+        private final int endMappedValue;
+
+        private RangeMapping(int startGID, int first, int nLeft) {
+            this.startValue = startGID;
+            this.endValue = this.startValue + nLeft;
+            this.startMappedValue = first;
+            this.endMappedValue = this.startMappedValue + nLeft;
+        }
+
+        boolean isInRange(int value) {
+            return value >= this.startValue && value <= this.endValue;
+        }
+
+        boolean isInReverseRange(int value) {
+            return value >= this.startMappedValue && value <= this.endMappedValue;
+        }
+
+        int mapValue(int value) {
+            return this.isInRange(value) ? this.startMappedValue + (value - this.startValue) : 0;
+        }
+
+        int mapReverseValue(int value) {
+            return this.isInReverseRange(value) ? this.startValue + (value - this.startMappedValue) : 0;
+        }
+
+        public String toString() {
+            return this.getClass().getName() + "[start value=" + this.startValue + ", end value=" + this.endValue + ", start mapped-value=" + this.startMappedValue + ", end mapped-value=" + this.endMappedValue + "]";
+        }
+    }
+
+    private static class Format2Charset extends EmbeddedCharset {
+        private int format;
+        private List<RangeMapping> rangesCID2GID;
+
+        protected Format2Charset(boolean isCIDFont) {
+            super(isCIDFont);
+        }
+
+        public int getCIDForGID(int gid) {
+            Iterator var2 = this.rangesCID2GID.iterator();
+
+            RangeMapping mapping;
+            do {
+                if (!var2.hasNext()) {
+                    return super.getCIDForGID(gid);
+                }
+
+                mapping = (RangeMapping)var2.next();
+            } while(!mapping.isInRange(gid));
+
+            return mapping.mapValue(gid);
+        }
+
+        public int getGIDForCID(int cid) {
+            Iterator var2 = this.rangesCID2GID.iterator();
+
+            RangeMapping mapping;
+            do {
+                if (!var2.hasNext()) {
+                    return super.getGIDForCID(cid);
+                }
+
+                mapping = (RangeMapping)var2.next();
+            } while(!mapping.isInReverseRange(cid));
+
+            return mapping.mapReverseValue(cid);
+        }
+
+        public String toString() {
+            return this.getClass().getName() + "[format=" + this.format + "]";
+        }
+    }
+
+    private static class Format1Charset extends EmbeddedCharset {
+        private int format;
+        private List<RangeMapping> rangesCID2GID;
+
+        protected Format1Charset(boolean isCIDFont) {
+            super(isCIDFont);
+        }
+
+        public int getCIDForGID(int gid) {
+            if (this.isCIDFont()) {
+                Iterator var2 = this.rangesCID2GID.iterator();
+
+                while(var2.hasNext()) {
+                    RangeMapping mapping = (RangeMapping)var2.next();
+                    if (mapping.isInRange(gid)) {
+                        return mapping.mapValue(gid);
+                    }
+                }
+            }
+
+            return super.getCIDForGID(gid);
+        }
+
+        public int getGIDForCID(int cid) {
+            if (this.isCIDFont()) {
+                Iterator var2 = this.rangesCID2GID.iterator();
+
+                while(var2.hasNext()) {
+                    RangeMapping mapping = (RangeMapping)var2.next();
+                    if (mapping.isInReverseRange(cid)) {
+                        return mapping.mapReverseValue(cid);
+                    }
+                }
+            }
+
+            return super.getGIDForCID(cid);
+        }
+
+        public String toString() {
+            return this.getClass().getName() + "[format=" + this.format + "]";
+        }
+    }
+
+    private static class Format0Charset extends EmbeddedCharset {
+        private int format;
+
+        protected Format0Charset(boolean isCIDFont) {
+            super(isCIDFont);
+        }
+
+        public String toString() {
+            return this.getClass().getName() + "[format=" + this.format + "]";
+        }
     }
 
     // ADDED BY Oren & Ygal

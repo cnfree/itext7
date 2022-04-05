@@ -52,11 +52,7 @@ import com.itextpdf.io.util.IntHashtable;
 import java.io.Closeable;
 import java.io.File;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 class OpenTypeParser implements Serializable, Closeable {
 
@@ -98,7 +94,7 @@ class OpenTypeParser implements Serializable, Closeable {
     /**
      * The components of table 'OS/2'.
      */
-    static class WindowsMetrics implements Serializable{
+    static class WindowsMetrics implements Serializable {
         private static final long serialVersionUID = -9117114979326346658L;
         short xAvgCharWidth;
         int usWeightClass;
@@ -155,6 +151,7 @@ class OpenTypeParser implements Serializable, Closeable {
          * The map containing the code information for the table 'cmap', encoding 1.0.
          * The key is the code and the value is an {@code int[2]} where position 0
          * is the glyph number and position 1 is the glyph width normalized to 1000 units.
+         *
          * @see TrueTypeFont#UNITS_NORMALIZATION
          */
         Map<Integer, int[]> cmap10;
@@ -162,14 +159,18 @@ class OpenTypeParser implements Serializable, Closeable {
          * The map containing the code information for the table 'cmap', encoding 3.1 in Unicode.
          * The key is the code and the value is an {@code int[2]} where position 0
          * is the glyph number and position 1 is the glyph width normalized to 1000 units.
+         *
          * @see TrueTypeFont#UNITS_NORMALIZATION
          */
         Map<Integer, int[]> cmap31;
         Map<Integer, int[]> cmapExt;
+        Map<Integer, int[]> cmapUnkown;
         boolean fontSpecific = false;
     }
 
-    /** The file name. */
+    /**
+     * The file name.
+     */
     protected String fileName;
     /**
      * The file in use.
@@ -197,6 +198,8 @@ class OpenTypeParser implements Serializable, Closeable {
      * Indicate, that the font contains 'CFF ' table.
      */
     protected boolean cff = false;
+
+    protected boolean cut = false;
     /**
      * Offset to 'CFF ' table.
      */
@@ -213,6 +216,7 @@ class OpenTypeParser implements Serializable, Closeable {
     protected WindowsMetrics os_2;
     protected PostTable post;
     protected CmapTable cmaps;
+    protected CFFFont cffFont;
 
     /**
      * Contains the location of the several tables. The key is the name of
@@ -222,12 +226,23 @@ class OpenTypeParser implements Serializable, Closeable {
      */
     protected Map<String, int[]> tables;
 
+    protected byte[] ttf;
+
     public OpenTypeParser(byte[] ttf) throws java.io.IOException {
+        this.ttf = ttf;
         raf = new RandomAccessFileOrArray(new RandomAccessSourceFactory().createSource(ttf));
         initializeSfntTables();
     }
 
+    public OpenTypeParser(byte[] ttf, String fontName) throws java.io.IOException {
+        this.ttf = ttf;
+        raf = new RandomAccessFileOrArray(new RandomAccessSourceFactory().createSource(ttf));
+        this.fontName = fontName;
+        initializeSfntTables();
+    }
+
     public OpenTypeParser(byte[] ttc, int ttcIndex) throws java.io.IOException {
+        this.ttf = ttf;
         this.ttcIndex = ttcIndex;
         raf = new RandomAccessFileOrArray(new RandomAccessSourceFactory().createSource(ttc));
         initializeSfntTables();
@@ -294,6 +309,12 @@ class OpenTypeParser implements Serializable, Closeable {
 
     public FontNames getFontNames() {
         FontNames fontNames = new FontNames();
+        if (isCut()) {
+            if(fontName!=null){
+                fontNames.setFontName(fontName);
+            }
+            return fontNames;
+        }
         fontNames.setAllNames(getAllNameEntries());
         fontNames.setFontName(getPsFontName());
         fontNames.setFullName(fontNames.getNames(4));
@@ -322,6 +343,10 @@ class OpenTypeParser implements Serializable, Closeable {
         fontNames.setMacStyle(head.macStyle);
         fontNames.setAllowEmbedding(os_2.fsType != 2);
         return fontNames;
+    }
+
+    public boolean isCut() {
+        return cut;
     }
 
     public boolean isCff() {
@@ -422,18 +447,22 @@ class OpenTypeParser implements Serializable, Closeable {
         }
         raf.seek(directoryOffset);
         int ttId = raf.readInt();
-        if (ttId != 0x00010000 && ttId != 0x4F54544F) {
-            if (fileName != null) {
-                throw new IOException("{0} is not a valid ttf or otf file.").setMessageParams(fileName);
-            } else {
-                throw new IOException("Not a valid ttf or otf file.");
-            }
-        }
+//        if (ttId != 0x00010000 && ttId != 0x4F54544F) {
+//            if (fileName != null) {
+//                throw new IOException("{0} is not a valid ttf or otf file.").setMessageParams(fileName);
+//            } else {
+//                throw new IOException("Not a valid ttf or otf file.");
+//            }
+//        }
         int num_tables = raf.readUnsignedShort();
-        raf.skipBytes(6);
+
+        int searchRange = raf.readUnsignedShort();
+        int entrySelector = raf.readUnsignedShort();
+        int rangeShift = raf.readUnsignedShort();
+
         for (int k = 0; k < num_tables; ++k) {
             String tag = readStandardString(4);
-            raf.skipBytes(4);
+            long checkSum = raf.readUnsignedInt();
             int[] table_location = new int[2];
             table_location[0] = raf.readInt();
             table_location[1] = raf.readInt();
@@ -443,19 +472,41 @@ class OpenTypeParser implements Serializable, Closeable {
 
     /**
      * Reads the font data.
+     *
      * @param all if true, all tables will be read, otherwise only 'head', 'name', and 'os/2'.
      */
     protected void loadTables(boolean all) throws java.io.IOException {
-        readNameTable();
-        readHeadTable();
-        readOs_2Table();
-        readPostTable();
-        if (all) {
-            checkCff();
-            readHheaTable();
-            readGlyphWidths();
-            readCmapTable();
+        try {
+            readNameTable();
+            readHeadTable();
+            readOs_2Table();
+            readPostTable();
+            if (all) {
+                checkCff();
+                readHheaTable();
+                readGlyphWidths();
+                readCmapTable();
+            }
+        } catch (Exception e) {
+            if (ttf != null) {
+                try {
+                    cffFont = new CFFFont(ttf);
+                    if(cffFont.getNames()!=null && cffFont.getNames().length>0){
+                        this.fontName = cffFont.getNames()[0];
+                    }
+                    cut = true;
+                    cff = true;
+                    cffOffset = 0;
+                    cffLength = (int) raf.length();
+                } catch (Exception e1) {
+                    throw new java.io.IOException(e);
+                }
+            }
         }
+    }
+
+    public CFFFont getCffFont() {
+        return cffFont;
     }
 
     /**
@@ -500,6 +551,10 @@ class OpenTypeParser implements Serializable, Closeable {
         int table_location[];
         table_location = tables.get("hmtx");
         if (table_location == null) {
+//            if(fontName!=null){
+//                glyphWidthsByIndex = new int[0];
+//                return;
+//            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("hmtx", fileName);
             } else {
@@ -562,13 +617,16 @@ class OpenTypeParser implements Serializable, Closeable {
      * Read the glyf bboxes from 'glyf' table.
      *
      * @param unitsPerEm {@link HeaderTable#unitsPerEm}
-     * @throws IOException the font is invalid
-     * @throws java.io.IOException  the font file could not be read
+     * @throws IOException         the font is invalid
+     * @throws java.io.IOException the font file could not be read
      */
     protected int[][] readBbox(int unitsPerEm) throws java.io.IOException {
         int tableLocation[];
         tableLocation = tables.get("head");
         if (tableLocation == null) {
+            if (fontName != null) {
+                return null;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("head", fileName);
             } else {
@@ -599,6 +657,9 @@ class OpenTypeParser implements Serializable, Closeable {
 
         tableLocation = tables.get("glyf");
         if (tableLocation == null) {
+            if (fontName != null) {
+                return null;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("glyf", fileName);
             } else {
@@ -635,17 +696,21 @@ class OpenTypeParser implements Serializable, Closeable {
     /**
      * Extracts the names of the font in all the languages available.
      *
-     * @throws IOException on error
-     * @throws java.io.IOException  on error
+     * @throws IOException         on error
+     * @throws java.io.IOException on error
      */
     private void readNameTable() throws java.io.IOException {
         int[] table_location = tables.get("name");
         if (table_location == null) {
-            if (fileName != null) {
-                throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("name", fileName);
-            } else {
-                throw new IOException(IOException.TableDoesNotExist).setMessageParams("name");
+            if (fontName != null) {
+                allNameEntries = new LinkedHashMap<>();
+                return;
             }
+//            if (fileName != null) {
+//                throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("name", fileName);
+//            } else {
+//                throw new IOException(IOException.TableDoesNotExist).setMessageParams("name");
+//            }
         }
         allNameEntries = new LinkedHashMap<>();
         raf.seek(table_location[0] + 2);
@@ -685,12 +750,16 @@ class OpenTypeParser implements Serializable, Closeable {
     /**
      * Read horizontal header, table 'hhea'.
      *
-     * @throws IOException the font is invalid.
-     * @throws java.io.IOException  the font file could not be read.
+     * @throws IOException         the font is invalid.
+     * @throws java.io.IOException the font file could not be read.
      */
     private void readHheaTable() throws java.io.IOException {
         int[] table_location = tables.get("hhea");
         if (table_location == null) {
+            if (fontName != null) {
+                hhea = new HorizontalHeader();
+                return;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("hhea", fileName);
             } else {
@@ -715,12 +784,16 @@ class OpenTypeParser implements Serializable, Closeable {
     /**
      * Read font header, table 'head'.
      *
-     * @throws IOException the font is invalid.
-     * @throws java.io.IOException  the font file could not be read.
+     * @throws IOException         the font is invalid.
+     * @throws java.io.IOException the font file could not be read.
      */
     private void readHeadTable() throws java.io.IOException {
         int[] table_location = tables.get("head");
         if (table_location == null) {
+            if (fontName != null) {
+                head = new HeaderTable();
+                return;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("head", fileName);
             } else {
@@ -743,12 +816,16 @@ class OpenTypeParser implements Serializable, Closeable {
      * Reads the windows metrics table. The metrics are extracted from the table 'OS/2'.
      * Depends on {@link HeaderTable#unitsPerEm} property.
      *
-     * @throws IOException the font is invalid.
-     * @throws java.io.IOException  the font file could not be read.
+     * @throws IOException         the font is invalid.
+     * @throws java.io.IOException the font file could not be read.
      */
     private void readOs_2Table() throws java.io.IOException {
         int[] table_location = tables.get("OS/2");
         if (table_location == null) {
+            if (fontName != null) {
+                os_2 = new WindowsMetrics();
+                return;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("os/2", fileName);
             } else {
@@ -818,7 +895,9 @@ class OpenTypeParser implements Serializable, Closeable {
             post.isFixedPitch = raf.readInt() != 0;
         } else {
             post = new OpenTypeParser.PostTable();
-            post.italicAngle = (float) (-Math.atan2(hhea.caretSlopeRun, hhea.caretSlopeRise) * 180 / Math.PI);
+            if (hhea != null) {
+                post.italicAngle = (float) (-Math.atan2(hhea.caretSlopeRun, hhea.caretSlopeRise) * 180 / Math.PI);
+            }
         }
     }
 
@@ -832,6 +911,10 @@ class OpenTypeParser implements Serializable, Closeable {
     private void readCmapTable() throws java.io.IOException {
         int[] table_location = tables.get("cmap");
         if (table_location == null) {
+            if (fontName != null) {
+                cmaps = new CmapTable();
+                return;
+            }
             if (fileName != null) {
                 throw new IOException(IOException.TableDoesNotExistsIn).setMessageParams("cmap", fileName);
             } else {
@@ -839,12 +922,13 @@ class OpenTypeParser implements Serializable, Closeable {
             }
         }
         raf.seek(table_location[0]);
-        raf.skipBytes(2);
+        int version = raf.readUnsignedShort();
         int num_tables = raf.readUnsignedShort();
         int map10 = 0;
         int map31 = 0;
         int map30 = 0;
         int mapExt = 0;
+        int mapUnknown = 0;
         cmaps = new CmapTable();
         for (int k = 0; k < num_tables; ++k) {
             int platId = raf.readUnsignedShort();
@@ -859,6 +943,8 @@ class OpenTypeParser implements Serializable, Closeable {
                 mapExt = offset;
             } else if (platId == 1 && platSpecId == 0) {
                 map10 = offset;
+            } else {
+                mapUnknown = offset;
             }
         }
         if (map10 > 0) {
@@ -908,6 +994,39 @@ class OpenTypeParser implements Serializable, Closeable {
                 case 12:
                     cmaps.cmapExt = readFormat12();
                     break;
+            }
+        }
+        if (mapUnknown > 0) {
+            raf.seek(table_location[0] + mapUnknown);
+            int format = raf.readUnsignedShort();
+            switch (format) {
+                case 0:
+                    cmaps.cmapUnkown = readFormat0();
+                    break;
+//                case 2:
+//                    cmaps.cmapUnkown = readFormat2();
+//                    break;
+                case 4:
+                    cmaps.cmapUnkown = readFormat4(false);
+                    break;
+                case 6:
+                    cmaps.cmapUnkown = readFormat6();
+                    break;
+//                case 8:
+//                    cmaps.cmapUnkown = readFormat8();
+//                    break;
+//                case 10:
+//                    cmaps.cmapUnkown = readFormat10();
+//                    break;
+                case 12:
+                    cmaps.cmapUnkown = readFormat12();
+                    break;
+//                case 13:
+//                    cmaps.cmapUnkown = readFormat14();
+//                    break;
+//                case 14:
+//                    cmaps.cmapUnkown = readFormat14();
+//                    break;
             }
         }
     }

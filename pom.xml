@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>com.itextpdf</groupId>
   <artifactId>root</artifactId>
   <version>7.1.10</version>
   <packaging>pom</packaging>
+
   <name>iText 7</name>
   <description>A Free Java-PDF library</description>
   <url>https://itextpdf.com/</url>
@@ -19,6 +21,7 @@
       <url>http://www.fsf.org/licensing/licenses/agpl-3.0.html</url>
     </license>
   </licenses>
+
   <developers>
     <developer>
       <id>itext</id>
@@ -27,6 +30,7 @@
       <url>https://www.itextpdf.com</url>
     </developer>
   </developers>
+
   <mailingLists>
     <mailingList>
       <name>iText on StackOverflow</name>
@@ -41,6 +45,7 @@
       </otherArchives>
     </mailingList>
   </mailingLists>
+
   <modules>
     <module>barcodes</module>
     <module>font-asian</module>
@@ -56,6 +61,7 @@
     <module>styled-xml-parser</module>
     <module>svg</module>
   </modules>
+
   <scm>
     <connection>scm:git:ssh://git@git.itextsupport.com:7999/i7j/itextcore.git</connection>
     <url>https://git.itextsupport.com/projects/I7J/repos/itextcore</url>
@@ -81,7 +87,7 @@
     <itext.legacy.version>5.5.13.1</itext.legacy.version>
     <jacoco.version>0.8.4</jacoco.version>
     <java.version>1.7</java.version>
-    <javadoc-additionalOptions/>
+    <javadoc-additionalOptions />
     <javadoc-link>https://docs.oracle.com/javase/8/docs/api/</javadoc-link>
     <javadoc.version>3.0.1</javadoc.version>
     <jfreechart.version>1.0.19</jfreechart.version>
@@ -133,6 +139,7 @@
       <url>https://repo.itextsupport.com/releases</url>
     </repository>
   </repositories>
+
   <dependencies>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -188,37 +195,37 @@
           <skip>${skipSortPom}</skip>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>com.github.spotbugs</groupId>
-        <artifactId>spotbugs-maven-plugin</artifactId>
-        <version>${spotbugs.version}</version>
-        <executions>
-          <execution>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <effort>Max</effort>
-          <threshold>High</threshold>
-          <xmlOutput>true</xmlOutput>
-          <failOnError>false</failOnError>
-          <plugins>
-            <plugin>
-              <groupId>com.mebigfatguy.fb-contrib</groupId>
-              <artifactId>fb-contrib</artifactId>
-              <version>${fb-contrib.version}</version>
-            </plugin>
-            <plugin>
-              <groupId>com.h3xstream.findsecbugs</groupId>
-              <artifactId>findsecbugs-plugin</artifactId>
-              <version>${findsecbugs.version}</version>
-            </plugin>
-          </plugins>
-        </configuration>
-      </plugin>
+<!--      <plugin>-->
+<!--        <groupId>com.github.spotbugs</groupId>-->
+<!--        <artifactId>spotbugs-maven-plugin</artifactId>-->
+<!--        <version>${spotbugs.version}</version>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <phase>verify</phase>-->
+<!--            <goals>-->
+<!--              <goal>check</goal>-->
+<!--            </goals>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <configuration>-->
+<!--          <effort>Max</effort>-->
+<!--          <threshold>High</threshold>-->
+<!--          <xmlOutput>true</xmlOutput>-->
+<!--          <failOnError>false</failOnError>-->
+<!--          <plugins>-->
+<!--            <plugin>-->
+<!--              <groupId>com.mebigfatguy.fb-contrib</groupId>-->
+<!--              <artifactId>fb-contrib</artifactId>-->
+<!--              <version>${fb-contrib.version}</version>-->
+<!--            </plugin>-->
+<!--            <plugin>-->
+<!--              <groupId>com.h3xstream.findsecbugs</groupId>-->
+<!--              <artifactId>findsecbugs-plugin</artifactId>-->
+<!--              <version>${findsecbugs.version}</version>-->
+<!--            </plugin>-->
+<!--          </plugins>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
       <plugin>
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
@@ -284,127 +291,127 @@
         <artifactId>maven-jar-plugin</artifactId>
         <version>${maven.jar.version}</version>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>${javadoc.version}</version>
-        <executions>
-          <execution>
-            <id>site-javadoc</id>
-            <phase>site</phase>
-            <goals>
-              <goal>aggregate</goal>
-            </goals>
-            <configuration>
-              <failOnError>false</failOnError>
-            </configuration>
-          </execution>
-          <execution>
-            <id>attach-javadocs</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <failOnError>false</failOnError>
-            </configuration>
-          </execution>
-        </executions>
-        <configuration>
-          <failOnError>false</failOnError>
-          <quiet>true</quiet>
-          <source>7</source>
-          <detectLinks>true</detectLinks>
-          <additionalOptions>${javadoc-additionalOptions}</additionalOptions>
-          <links>
-            <link>${javadoc-link}</link>
-          </links>
-          <sourceFileExcludes>
-            <!-- com.itextpdf.io.util -->
-            <sourceFileExclude>com/itextpdf/io/util/ArrayUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/DateTimeUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/DecimalFormatUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/EncodingUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/EnumUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/ExceptionUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/FileUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/FilterUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/GenericArray.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/HashCode.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/IdelOutputStream.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/IntHashtable.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/MessageFormatUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/NumberUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/ResourceUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/StreamUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/SystemUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/TextUtil.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/io/util/UrlUtil.java</sourceFileExclude>
+<!--      <plugin>-->
+<!--        <groupId>org.apache.maven.plugins</groupId>-->
+<!--        <artifactId>maven-javadoc-plugin</artifactId>-->
+<!--        <version>${javadoc.version}</version>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <id>site-javadoc</id>-->
+<!--            <phase>site</phase>-->
+<!--            <goals>-->
+<!--              <goal>aggregate</goal>-->
+<!--            </goals>-->
+<!--            <configuration>-->
+<!--              <failOnError>false</failOnError>-->
+<!--            </configuration>-->
+<!--          </execution>-->
+<!--          <execution>-->
+<!--            <id>attach-javadocs</id>-->
+<!--            <phase>package</phase>-->
+<!--            <goals>-->
+<!--              <goal>jar</goal>-->
+<!--            </goals>-->
+<!--            <configuration>-->
+<!--              <failOnError>false</failOnError>-->
+<!--            </configuration>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <configuration>-->
+<!--          <failOnError>false</failOnError>-->
+<!--          <quiet>true</quiet>-->
+<!--          <source>7</source>-->
+<!--          <detectLinks>true</detectLinks>-->
+<!--          <additionalOptions>${javadoc-additionalOptions}</additionalOptions>-->
+<!--          <links>-->
+<!--            <link>${javadoc-link}</link>-->
+<!--          </links>-->
+<!--          <sourceFileExcludes>-->
+<!--            &lt;!&ndash; com.itextpdf.io.util &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/ArrayUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/DateTimeUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/DecimalFormatUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/EncodingUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/EnumUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/ExceptionUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/FileUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/FilterUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/GenericArray.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/HashCode.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/IdelOutputStream.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/IntHashtable.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/MessageFormatUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/NumberUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/ResourceUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/StreamUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/SystemUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/TextUtil.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/io/util/UrlUtil.java</sourceFileExclude>-->
 
-            <!-- com.itextpdf.io.codec.brotli -->
-            <sourceFileExclude>com/itextpdf/io/codec/brotli/dec/*.java</sourceFileExclude>
+<!--            &lt;!&ndash; com.itextpdf.io.codec.brotli &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/io/codec/brotli/dec/*.java</sourceFileExclude>-->
 
-            <!-- styled-xml-parser -->
-            <sourceFileExclude>com/itextpdf/styledxmlparser/PortUtil.java</sourceFileExclude>
+<!--            &lt;!&ndash; styled-xml-parser &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/styledxmlparser/PortUtil.java</sourceFileExclude>-->
 
-            <!-- com.itextpdf.styledxmlparser.jsoup -->
-            <sourceFileExclude>com/itextpdf/styledxmlparser/jsoup/**/*.java</sourceFileExclude>
+<!--            &lt;!&ndash; com.itextpdf.styledxmlparser.jsoup &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/styledxmlparser/jsoup/**/*.java</sourceFileExclude>-->
 
-            <!-- kernel -->
-            <sourceFileExclude>com/itextpdf/kernel/crypto/CryptoUtil.java</sourceFileExclude>
+<!--            &lt;!&ndash; kernel &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/kernel/crypto/CryptoUtil.java</sourceFileExclude>-->
 
-            <!-- svg -->
-            <sourceFileExclude>com/itextpdf/svg/utils/SvgCoordinateUtils.java</sourceFileExclude>
-            <sourceFileExclude>com/itextpdf/svg/utils/SvgRegexUtils.java</sourceFileExclude>
-          </sourceFileExcludes>
-          <groups>
-            <group>
-              <title>Barcodes</title>
-              <packages>com.itextpdf.barcodes*</packages>
-            </group>
-            <group>
-              <title>Asian Fonts</title>
-              <packages>com.itextpdf.font-asian*</packages>
-            </group>
-            <group>
-              <title>Forms</title>
-              <packages>com.itextpdf.forms*</packages>
-            </group>
-            <group>
-              <title>Hyphenation</title>
-              <packages>com.itextpdf.hyph*</packages>
-            </group>
-            <group>
-              <title>Input / Output</title>
-              <packages>com.itextpdf.io*</packages>
-            </group>
-            <group>
-              <title>Kernel</title>
-              <packages>com.itextpdf.kernel*</packages>
-            </group>
-            <group>
-              <title>Layout</title>
-              <packages>com.itextpdf.layout*</packages>
-            </group>
-            <group>
-              <title>PDF/A</title>
-              <packages>com.itextpdf.pdfa*</packages>
-            </group>
-            <group>
-              <title>Signatures</title>
-              <packages>com.itextpdf.signatures*</packages>
-            </group>
-            <group>
-              <title>Styled XML Parser</title>
-              <packages>com.itextpdf.styledxmlparser*</packages>
-            </group>
-            <group>
-              <title>SVG</title>
-              <packages>com.itextpdf.svg*</packages>
-            </group>
-          </groups>
-        </configuration>
-      </plugin>
+<!--            &lt;!&ndash; svg &ndash;&gt;-->
+<!--            <sourceFileExclude>com/itextpdf/svg/utils/SvgCoordinateUtils.java</sourceFileExclude>-->
+<!--            <sourceFileExclude>com/itextpdf/svg/utils/SvgRegexUtils.java</sourceFileExclude>-->
+<!--          </sourceFileExcludes>-->
+<!--          <groups>-->
+<!--            <group>-->
+<!--              <title>Barcodes</title>-->
+<!--              <packages>com.itextpdf.barcodes*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Asian Fonts</title>-->
+<!--              <packages>com.itextpdf.font-asian*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Forms</title>-->
+<!--              <packages>com.itextpdf.forms*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Hyphenation</title>-->
+<!--              <packages>com.itextpdf.hyph*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Input / Output</title>-->
+<!--              <packages>com.itextpdf.io*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Kernel</title>-->
+<!--              <packages>com.itextpdf.kernel*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Layout</title>-->
+<!--              <packages>com.itextpdf.layout*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>PDF/A</title>-->
+<!--              <packages>com.itextpdf.pdfa*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Signatures</title>-->
+<!--              <packages>com.itextpdf.signatures*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>Styled XML Parser</title>-->
+<!--              <packages>com.itextpdf.styledxmlparser*</packages>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <title>SVG</title>-->
+<!--              <packages>com.itextpdf.svg*</packages>-->
+<!--            </group>-->
+<!--          </groups>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
@@ -444,23 +451,23 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.owasp</groupId>
-        <artifactId>dependency-check-maven</artifactId>
-        <version>5.2.4</version>
-        <executions>
-          <execution>
-            <phase>verify</phase>
-            <goals>
-              <goal>aggregate</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <format>XML</format>
-          <prettyPrint>true</prettyPrint>
-        </configuration>
-      </plugin>
+<!--      <plugin>-->
+<!--        <groupId>org.owasp</groupId>-->
+<!--        <artifactId>dependency-check-maven</artifactId>-->
+<!--        <version>5.2.4</version>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <phase>verify</phase>-->
+<!--            <goals>-->
+<!--              <goal>aggregate</goal>-->
+<!--            </goals>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <configuration>-->
+<!--          <format>XML</format>-->
+<!--          <prettyPrint>true</prettyPrint>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
     </plugins>
   </build>
 
@@ -542,6 +549,7 @@
       </plugin>
     </plugins>
   </reporting>
+
   <profiles>
     <profile>
       <id>java9+</id>
@@ -600,7 +608,7 @@
             <executions>
               <execution>
                 <id>bundle-manifest</id>
-                <phase/>
+                <phase />
               </execution>
             </executions>
           </plugin>
@@ -630,7 +638,7 @@
             <executions>
               <execution>
                 <id>default-testCompile</id>
-                <phase/>
+                <phase />
               </execution>
             </executions>
           </plugin>
@@ -666,11 +674,11 @@
             <executions>
               <execution>
                 <id>default-resources</id>
-                <phase/>
+                <phase />
               </execution>
               <execution>
                 <id>default-testResources</id>
-                <phase/>
+                <phase />
               </execution>
             </executions>
           </plugin>
@@ -685,7 +693,7 @@
             <executions>
               <execution>
                 <id>default-test</id>
-                <phase/>
+                <phase />
               </execution>
             </executions>
           </plugin>

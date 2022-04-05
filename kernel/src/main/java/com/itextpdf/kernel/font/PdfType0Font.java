@@ -44,14 +44,7 @@
 package com.itextpdf.kernel.font;
 
 import com.itextpdf.io.LogMessageConstant;
-import com.itextpdf.io.font.CFFFontSubset;
-import com.itextpdf.io.font.CMapEncoding;
-import com.itextpdf.io.font.CidFont;
-import com.itextpdf.io.font.CidFontProperties;
-import com.itextpdf.io.font.FontProgram;
-import com.itextpdf.io.font.FontProgramFactory;
-import com.itextpdf.io.font.PdfEncodings;
-import com.itextpdf.io.font.TrueTypeFont;
+import com.itextpdf.io.font.*;
 import com.itextpdf.io.font.cmap.CMapContentParser;
 import com.itextpdf.io.font.cmap.CMapToUnicode;
 import com.itextpdf.io.font.otf.Glyph;
@@ -63,25 +56,12 @@ import com.itextpdf.io.util.MessageFormatUtil;
 import com.itextpdf.io.util.StreamUtil;
 import com.itextpdf.io.util.TextUtil;
 import com.itextpdf.kernel.PdfException;
-import com.itextpdf.kernel.pdf.PdfArray;
-import com.itextpdf.kernel.pdf.PdfDictionary;
-import com.itextpdf.kernel.pdf.PdfLiteral;
-import com.itextpdf.kernel.pdf.PdfName;
-import com.itextpdf.kernel.pdf.PdfNumber;
-import com.itextpdf.kernel.pdf.PdfObject;
-import com.itextpdf.kernel.pdf.PdfOutputStream;
-import com.itextpdf.kernel.pdf.PdfStream;
-import com.itextpdf.kernel.pdf.PdfString;
-import com.itextpdf.kernel.pdf.PdfVersion;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import com.itextpdf.kernel.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.*;
 
 public class PdfType0Font extends PdfFont {
 
@@ -107,6 +87,9 @@ public class PdfType0Font extends PdfFont {
 
     PdfType0Font(TrueTypeFont ttf, String cmap) {
         super();
+        if(ttf.isCff() && !ttf.isNotCutCff()){
+            subset = false;
+        }
         if (!PdfEncodings.IDENTITY_H.equals(cmap) && !PdfEncodings.IDENTITY_V.equals(cmap)) {
             throw new PdfException(PdfException.OnlyIdentityCMapsSupportsWithTrueType);
         }

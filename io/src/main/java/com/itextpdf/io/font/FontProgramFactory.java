@@ -137,6 +137,10 @@ public final class FontProgramFactory {
         return createFont(null, fontProgram, DEFAULT_CACHED);
     }
 
+    public static FontProgram createFont(byte[] fontProgram, String fontName) throws java.io.IOException {
+        return createFont(fontName, fontProgram, DEFAULT_CACHED);
+    }
+
     /**
      * Creates a new font program. This font program can be one of the 14 built in fonts,
      * a Type 1 font referred to by an AFM or PFM file, a TrueType font or
@@ -228,7 +232,7 @@ public final class FontProgramFactory {
                         throw new IOException(IOException.InvalidWoff2File, woff2Exception);
                     }
                 }
-                fontBuilt = new TrueTypeFont(fontProgram);
+                fontBuilt = new TrueTypeFont(fontProgram, name);
             } else {
                 int ttcSplit = baseName.toLowerCase().indexOf(".ttc,");
                 if (ttcSplit > 0) {
